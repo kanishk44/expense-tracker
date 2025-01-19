@@ -1,94 +1,137 @@
-# Expense Tracker App
+# Expense Tracker
 
-A simple and intuitive expense tracking application built with vanilla JavaScript, Bootstrap, and HTML/CSS. This application allows users to manage their expenses with local storage integration.
+A full-stack web application for tracking personal expenses. Built with Node.js, Express, MySQL, and Bootstrap.
 
 ## Features
 
-- Add new expenses with amount, description, and category
-- Edit existing expenses
-- Delete expenses
-- Local storage integration for data persistence
-- Responsive design using Bootstrap
-- Form validation
-- Real-time updates
+- Create, read, update, and delete expenses with an intuitive interface that makes managing your finances effortless
+- Responsive design provides a seamless experience across desktop, tablet, and mobile devices
+- Real-time updates ensure your expense data stays synchronized without requiring page refreshes
+- Clean, modern user interface makes expense tracking simple and efficient
+- Secure data persistence using MySQL database with Sequelize ORM integration
 
-## Technologies Used
+## Tech Stack
 
-- HTML5
-- CSS3
-- JavaScript (ES6+)
-- Bootstrap 5.3.2
-- Local Storage API
+### Frontend
 
-## Setup and Installation
+- HTML5 for structured, semantic markup
+- Bootstrap 5.3 for responsive layout and components
+- Bootstrap Icons for consistent visual elements
+- Vanilla JavaScript for dynamic client-side interactions
 
-1. Clone the repository or download the HTML file
-2. Open the `index.html` file in your web browser
-3. Start tracking your expenses!
+### Backend
 
-No additional setup or installation is required as this is a client-side application.
+- Node.js runtime environment
+- Express.js web application framework
+- Sequelize ORM for database management
+- MySQL database for reliable data storage
 
-## Usage
+## Prerequisites
 
-### Adding an Expense
+Ensure you have the following installed before running the application:
 
-1. Enter the expense amount in the "Expense Amount" field
-2. Provide a description in the "Description" field
-3. Select a category from the dropdown menu
-4. Click "Add Expense" button
+- Node.js (version 14 or higher)
+- MySQL Server (running instance)
+- MySQL credentials (defaults: username: 'root', password: 'Pass@123')
 
-### Editing an Expense
+## Installation
 
-1. Click the "Edit" button next to the expense you want to modify
-2. The form will be populated with the expense details
-3. Make your changes
-4. Click "Update Expense" to save the changes
+1. Clone the repository:
 
-### Deleting an Expense
+```bash
+git clone <repository-url>
+```
 
-1. Click the "Delete" button next to the expense you want to remove
-2. The expense will be immediately removed from both the display and local storage
+2. Navigate to the project directory:
 
-## Features in Detail
+```bash
+cd expense-tracker
+```
 
-### 1. Input Fields
+3. Install dependencies:
 
-- **Expense Amount**: Accepts numerical values
-- **Description**: Text field for expense details
-- **Category**: Dropdown with options including:
-  - Food
-  - Transportation
-  - Entertainment
-  - Shopping
-  - Utilities
-  - Others
+```bash
+npm install
+```
 
-### 2. Data Persistence
+4. Create the MySQL database:
 
-- All expenses are automatically saved to local storage
-- Data persists between browser sessions
-- Automatic synchronization between UI and storage
+```sql
+CREATE DATABASE expense_tracker;
+```
 
-### 3. UI Features
+5. Start the server:
 
-- Responsive design that works on both desktop and mobile
-- Clean, intuitive interface
-- Bootstrap-styled components
-- Form validation
-- Real-time updates to the expense list
+```bash
+npm start
+```
 
-## Browser Compatibility
+## API Endpoints
 
-The application is compatible with all modern browsers that support:
+The application provides the following RESTful endpoints:
 
-- Local Storage API
-- ES6+ JavaScript
-- Bootstrap 5
+- **GET /api/expenses**
+
+  - Retrieves all expenses
+  - Returns an array of expense objects
+
+- **POST /api/expenses**
+
+  - Creates a new expense
+  - Requires request body with expense details
+
+- **PUT /api/expenses/:id**
+
+  - Updates an existing expense
+  - Requires expense ID and updated details
+
+- **DELETE /api/expenses/:id**
+  - Removes an expense from the database
+  - Requires expense ID
+
+## Environment Variables
+
+Configure your database connection with these settings:
+
+```env
+DB_NAME=node-complete
+DB_USER=root
+DB_PASSWORD=<Your_Password>
+DB_HOST=localhost
+DB_DIALECT=mysql
+```
 
 ## Contributing
 
-Feel free to fork this project and submit pull requests with improvements or bug fixes.
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create your feature branch:
+
+```bash
+git checkout -b feature/AmazingFeature
+```
+
+3. Commit your changes:
+
+```bash
+git commit -m 'Add some AmazingFeature'
+```
+
+4. Push to the branch:
+
+```bash
+git push origin feature/AmazingFeature
+```
+
+5. Open a Pull Request
 
 ## License
 
-This project is open source and available under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- The Bootstrap team for their excellent UI framework
+- Sequelize team for their powerful ORM
+- Express.js team for their robust web framework
