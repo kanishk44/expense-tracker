@@ -38,10 +38,7 @@ exports.updateExpense = async (req, res) => {
   try {
     const { id } = req.params;
     const { description, amount } = req.body;
-    const expense = await Expense.update(
-      { description, amount },
-      { where: { id } }
-    );
+    await Expense.update({ description, amount }, { where: { id } });
     res.status(200).json({ message: "Expense updated successfully" });
   } catch (err) {
     res.status(500).json({ error: "Failed to update expense" });
