@@ -16,6 +16,10 @@ const Expense = sequelize.define("expense", {
     type: Sequelize.DECIMAL(10, 2),
     allowNull: false,
   },
+  category: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
   date: {
     type: Sequelize.DATE,
     allowNull: false,

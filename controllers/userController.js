@@ -1,4 +1,7 @@
 const User = require("../models/user");
+const bcrypt = require("bcrypt");
+
+const SALT_ROUNDS = 10; // Number of salt rounds for bcrypt
 
 exports.signup = async (req, res) => {
   try {
@@ -12,11 +15,14 @@ exports.signup = async (req, res) => {
         .json({ error: "User already exists with this email" });
     }
 
-    // Create new user
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // Create new user with hashed password
     const user = await User.create({
       name,
       email,
-      password, // Note: In a real application, you should hash the password
+      password: hashedPassword,
     });
 
     res
@@ -37,13 +43,16 @@ exports.login = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Check password
-    if (user.password !== password) {
-      // Note: In production, use proper password hashing
+    // Compare password with hashed password in database
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    // Login successful
+    // Set user session
+    req.session.userId = user.id;
+    req.session.userName = user.name;
+
     res.status(200).json({
       message: "User login successful",
       userId: user.id,

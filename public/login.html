@@ -92,7 +92,7 @@
               throw new Error(data.error || "Login failed");
             }
 
-            // Login successful - redirect to expenses page
+            // Redirect to expense page on successful login
             window.location.href = "/";
           } catch (error) {
             errorAlert.textContent = error.message;
