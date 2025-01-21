@@ -94,7 +94,7 @@ The application provides the following RESTful endpoints:
 Configure your database connection with these settings:
 
 ```env
-DB_NAME=node-complete
+DB_NAME=expense-tracker
 DB_USER=root
 DB_PASSWORD=<Your_Password>
 DB_HOST=localhost

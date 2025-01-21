@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const sequelize = require("./util/database");
 const expenseRoutes = require("./routes/expense");
 const path = require("path");
+const userRoutes = require("./routes/user");
 
 const app = express();
 
@@ -10,10 +11,14 @@ app.use(bodyParser.json());
 app.use(express.static("public"));
 
 app.use("/api", expenseRoutes);
+app.use("/api", userRoutes);
 
-// Serve index.html for the root route
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/signup", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "signup.html"));
 });
 
 sequelize
