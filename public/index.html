@@ -114,9 +114,22 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+      // Add this function to handle API calls
+      function fetchWithAuth(url, options = {}) {
+        const token = localStorage.getItem("token");
+        return fetch(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
+
       // Fetch and display expenses
       function loadExpenses() {
-        fetch("/api/expenses")
+        fetchWithAuth("/api/expenses")
           .then((response) => {
             if (!response.ok) {
               throw new Error("Failed to fetch expenses");
@@ -163,6 +176,9 @@
               `;
               tableBody.appendChild(row);
             });
+
+            document.getElementById("userName").textContent =
+              localStorage.getItem("userName") || "";
           })
           .catch((error) => {
             console.error("Error loading expenses:", error);
@@ -184,36 +200,39 @@
           e.preventDefault();
 
           const formData = {
-            description: document.getElementById("description").value,
-            amount: document.getElementById("amount").value,
+            description: document.getElementById("description").value.trim(),
+            amount: parseFloat(document.getElementById("amount").value),
             category: document.getElementById("category").value,
           };
 
+          console.log("Sending expense data:", formData);
+
           try {
-            const response = await fetch("/api/expenses", {
+            const response = await fetchWithAuth("/api/expenses", {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
               body: JSON.stringify(formData),
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-              throw new Error("Failed to add expense");
+              throw new Error(
+                data.error || data.details || "Failed to add expense"
+              );
             }
 
             document.getElementById("expenseForm").reset();
             loadExpenses();
           } catch (error) {
-            console.error("Error:", error);
-            alert("Failed to add expense. Please try again.");
+            console.error("Error adding expense:", error);
+            alert(error.message || "Failed to add expense. Please try again.");
           }
         });
 
       // Delete expense
       function deleteExpense(id) {
         if (confirm("Are you sure you want to delete this expense?")) {
-          fetch(`/api/expenses/${id}`, {
+          fetchWithAuth(`/api/expenses/${id}`, {
             method: "DELETE",
           }).then(() => loadExpenses());
         }
@@ -226,11 +245,8 @@
         const newCategory = prompt("Enter new category:");
 
         if (newDescription && newAmount && newCategory) {
-          fetch(`/api/expenses/${id}`, {
+          fetchWithAuth(`/api/expenses/${id}`, {
             method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
             body: JSON.stringify({
               description: newDescription,
               amount: newAmount,
@@ -245,16 +261,14 @@
 
       // Add logout function
       function logout() {
-        fetch("/api/logout", {
-          method: "POST",
-        }).then(() => {
-          window.location.href = "/login";
-        });
+        localStorage.removeItem("token");
+        localStorage.removeItem("userName");
+        window.location.href = "/login";
       }
 
       // Check authentication status
-      fetch("/api/expenses").catch((error) => {
-        if (error.response && error.response.status === 401) {
+      fetchWithAuth("/api/expenses").catch((error) => {
+        if (error.response?.status === 401 || error.status === 401) {
           window.location.href = "/login";
         }
       });

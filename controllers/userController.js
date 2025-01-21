@@ -1,5 +1,7 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const { JWT_SECRET } = require("../middleware/auth");
 
 const SALT_ROUNDS = 10; // Number of salt rounds for bcrypt
 
@@ -25,9 +27,16 @@ exports.signup = async (req, res) => {
       password: hashedPassword,
     });
 
-    res
-      .status(201)
-      .json({ message: "User created successfully", userId: user.id });
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "24h",
+    });
+
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      userId: user.id,
+      name: user.name,
+    });
   } catch (err) {
     res.status(500).json({ error: "Error creating user" });
   }
@@ -49,12 +58,13 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    // Set user session
-    req.session.userId = user.id;
-    req.session.userName = user.name;
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "24h",
+    });
 
     res.status(200).json({
       message: "User login successful",
+      token,
       userId: user.id,
       name: user.name,
     });

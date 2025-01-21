@@ -1,5 +1,6 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../util/database");
+const User = require("./user");
 
 const Expense = sequelize.define("expense", {
   id: {
@@ -20,11 +21,23 @@ const Expense = sequelize.define("expense", {
     type: Sequelize.STRING,
     allowNull: false,
   },
+  userId: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    references: {
+      model: User,
+      key: "id",
+    },
+  },
   date: {
     type: Sequelize.DATE,
     allowNull: false,
     defaultValue: Sequelize.NOW,
   },
 });
+
+// Define relationship
+Expense.belongsTo(User, { foreignKey: "userId" });
+User.hasMany(Expense, { foreignKey: "userId" });
 
 module.exports = Expense;
