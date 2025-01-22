@@ -60,17 +60,14 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("Login attempt for email:", email);
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      console.log("User not found:", email);
       return res.status(404).json({ error: "User not found" });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      console.log("Invalid password for user:", email);
       return res.status(401).json({ error: "Invalid password" });
     }
 
@@ -94,11 +91,6 @@ exports.login = async (req, res) => {
       isPremium: user.isPremium,
     });
   } catch (err) {
-    console.error("Login error details:", {
-      error: err,
-      message: err.message,
-      stack: err.stack,
-    });
     res.status(500).json({ error: "Error during login" });
   }
 };

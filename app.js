@@ -27,6 +27,12 @@ app.get("/signup", (req, res) => {
 });
 
 app.get("/", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1] || req.query.token;
+
+  if (!token) {
+    return res.redirect("/login");
+  }
+
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 

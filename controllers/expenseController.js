@@ -31,7 +31,6 @@ exports.createExpense = async (req, res) => {
       { transaction: t }
     );
 
-    // Update user's total expenses
     await User.increment("totalExpenses", {
       by: parseFloat(amount),
       where: { id: req.user.userId },
@@ -42,7 +41,6 @@ exports.createExpense = async (req, res) => {
     res.status(201).json(expense);
   } catch (err) {
     await t.rollback();
-    console.error("Error creating expense:", err);
     res.status(500).json({ error: "Failed to create expense" });
   }
 };

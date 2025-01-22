@@ -4,16 +4,21 @@ const User = require("../models/user");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const sequelize = require("../util/database");
+const { JWT_SECRET } = require("../middleware/auth");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-const PREMIUM_AMOUNT = 2500; // ₹25 in paise
+const PREMIUM_AMOUNT = 100; // ₹1 in paise
 
 exports.createOrder = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
+    const { description, amount, category } = req.body;
+
     const options = {
       amount: PREMIUM_AMOUNT,
       currency: "INR",
@@ -21,19 +26,23 @@ exports.createOrder = async (req, res) => {
 
     const order = await razorpay.orders.create(options);
 
-    await Order.create({
-      orderId: order.id,
-      status: "PENDING",
-      userId: req.user.userId,
-      amount: PREMIUM_AMOUNT,
-    });
+    await Order.create(
+      {
+        orderId: order.id,
+        status: "PENDING",
+        userId: req.user.userId,
+        amount: PREMIUM_AMOUNT,
+      },
+      { transaction: t }
+    );
 
+    await t.commit();
     res.json({
       order_id: order.id,
       key_id: process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) {
-    console.error(err);
+    await t.rollback();
     res.status(500).json({ error: "Failed to create order" });
   }
 };
@@ -42,9 +51,20 @@ exports.updatePaymentStatus = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-    const { order_id, payment_id, razorpay_signature } = req.body;
+    const { order_id, payment_id, razorpay_signature, status } = req.body;
 
-    // Verify payment signature
+    if (status === "FAILED" && !payment_id) {
+      await Order.update(
+        { status: "FAILED" },
+        {
+          where: { orderId: order_id },
+          transaction: t,
+        }
+      );
+      await t.commit();
+      return res.json({ message: "Order marked as failed" });
+    }
+
     const body = order_id + "|" + payment_id;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -61,11 +81,10 @@ exports.updatePaymentStatus = async (req, res) => {
           transaction: t,
         }
       );
-      await t.rollback();
+      await t.commit();
       return res.status(400).json({ error: "Payment verification failed" });
     }
 
-    // Verify payment status with Razorpay
     const payment = await razorpay.payments.fetch(payment_id);
 
     if (payment.status === "captured") {
@@ -114,11 +133,12 @@ exports.updatePaymentStatus = async (req, res) => {
     }
   } catch (err) {
     await t.rollback();
-    console.error(err);
-    await Order.update(
-      { status: "FAILED" },
-      { where: { orderId: req.body.order_id } }
-    );
+    try {
+      await Order.update(
+        { status: "FAILED" },
+        { where: { orderId: req.body.order_id } }
+      );
+    } catch (updateErr) {}
     res.status(500).json({ error: "Failed to update payment status" });
   }
 };
