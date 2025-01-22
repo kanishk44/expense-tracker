@@ -3,6 +3,7 @@ const Order = require("../models/order");
 const User = require("../models/user");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const sequelize = require("../util/database");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -38,6 +39,8 @@ exports.createOrder = async (req, res) => {
 };
 
 exports.updatePaymentStatus = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
     const { order_id, payment_id, razorpay_signature } = req.body;
 
@@ -53,8 +56,12 @@ exports.updatePaymentStatus = async (req, res) => {
     if (!isAuthentic) {
       await Order.update(
         { status: "FAILED" },
-        { where: { orderId: order_id } }
+        {
+          where: { orderId: order_id },
+          transaction: t,
+        }
       );
+      await t.rollback();
       return res.status(400).json({ error: "Payment verification failed" });
     }
 
@@ -64,15 +71,21 @@ exports.updatePaymentStatus = async (req, res) => {
     if (payment.status === "captured") {
       await Order.update(
         { status: "COMPLETED", paymentId: payment_id },
-        { where: { orderId: order_id } }
-      );
-      await User.update(
-        { isPremium: true },
-        { where: { id: req.user.userId } }
+        {
+          where: { orderId: order_id },
+          transaction: t,
+        }
       );
 
-      // Generate new token with updated premium status
-      const user = await User.findByPk(req.user.userId);
+      await User.update(
+        { isPremium: true },
+        {
+          where: { id: req.user.userId },
+          transaction: t,
+        }
+      );
+
+      const user = await User.findByPk(req.user.userId, { transaction: t });
       const token = jwt.sign(
         {
           userId: user.id,
@@ -83,20 +96,25 @@ exports.updatePaymentStatus = async (req, res) => {
         { expiresIn: "24h" }
       );
 
+      await t.commit();
       res.json({
         message: "Payment successful",
-        token, // Send new token
+        token,
       });
     } else {
       await Order.update(
         { status: "FAILED", paymentId: payment_id },
-        { where: { orderId: order_id } }
+        {
+          where: { orderId: order_id },
+          transaction: t,
+        }
       );
+      await t.commit();
       res.status(400).json({ error: "Payment failed" });
     }
   } catch (err) {
+    await t.rollback();
     console.error(err);
-    // Update order status to FAILED if there's an error
     await Order.update(
       { status: "FAILED" },
       { where: { orderId: req.body.order_id } }

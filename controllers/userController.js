@@ -2,36 +2,47 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../middleware/auth");
+const sequelize = require("../util/database");
 
 const SALT_ROUNDS = 10; // Number of salt rounds for bcrypt
 
 exports.signup = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
     const { name, email, password } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({
+      where: { email },
+      transaction: t,
+    });
+
     if (existingUser) {
+      await t.rollback();
       return res
         .status(400)
         .json({ error: "User already exists with this email" });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create new user with hashed password
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      isPremium: false,
-    });
+    const user = await User.create(
+      {
+        name,
+        email,
+        password: hashedPassword,
+        isPremium: false,
+      },
+      { transaction: t }
+    );
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, isPremium: false },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
 
+    await t.commit();
     res.status(201).json({
       message: "User created successfully",
       token,
@@ -40,6 +51,7 @@ exports.signup = async (req, res) => {
       isPremium: user.isPremium,
     });
   } catch (err) {
+    await t.rollback();
     console.error("Signup error:", err);
     res.status(500).json({ error: "Error creating user" });
   }
