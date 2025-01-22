@@ -16,8 +16,6 @@ exports.getExpenses = async (req, res) => {
 exports.createExpense = async (req, res) => {
   try {
     const { description, amount, category } = req.body;
-    console.log("Request body:", req.body);
-    console.log("User from token:", req.user);
 
     if (!description || !amount || !category) {
       return res.status(400).json({
@@ -40,16 +38,8 @@ exports.createExpense = async (req, res) => {
       userId: req.user.userId,
     });
 
-    console.log("Created expense:", expense.toJSON());
     res.status(201).json(expense);
   } catch (err) {
-    console.error("Detailed error creating expense:", {
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
-      body: req.body,
-      user: req.user,
-    });
     res.status(500).json({
       error: "Failed to create expense",
       details: err.message,

@@ -25,6 +25,7 @@ exports.signup = async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      isPremium: false,
     });
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
@@ -36,8 +37,10 @@ exports.signup = async (req, res) => {
       token,
       userId: user.id,
       name: user.name,
+      isPremium: user.isPremium,
     });
   } catch (err) {
+    console.error("Signup error:", err);
     res.status(500).json({ error: "Error creating user" });
   }
 };
@@ -45,30 +48,45 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("Login attempt for email:", email);
 
-    // Check if user exists
     const user = await User.findOne({ where: { email } });
     if (!user) {
+      console.log("User not found:", email);
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Compare password with hashed password in database
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
+      console.log("Invalid password for user:", email);
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        isPremium: user.isPremium,
+      },
+      JWT_SECRET,
+      {
+        expiresIn: "24h",
+      }
+    );
 
     res.status(200).json({
       message: "User login successful",
       token,
       userId: user.id,
       name: user.name,
+      isPremium: user.isPremium,
     });
   } catch (err) {
+    console.error("Login error details:", {
+      error: err,
+      message: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({ error: "Error during login" });
   }
 };

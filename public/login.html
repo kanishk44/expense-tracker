@@ -92,9 +92,11 @@
               throw new Error(data.error || "Login failed");
             }
 
-            // Store token
+            // Store user data
             localStorage.setItem("token", data.token);
             localStorage.setItem("userName", data.name);
+            localStorage.setItem("isPremium", data.isPremium);
+            localStorage.setItem("userId", data.userId);
 
             // Redirect to expense page
             window.location.href = "/";

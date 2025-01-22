@@ -5,19 +5,19 @@ const expenseRoutes = require("./routes/expense");
 const userRoutes = require("./routes/user");
 const { authenticateToken } = require("./middleware/auth");
 const path = require("path");
+const paymentRoutes = require("./routes/payment");
+const premiumRoutes = require("./routes/premium");
 
 const app = express();
 
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
-// Public routes
 app.use("/api/user", userRoutes);
-
-// Protected routes - mount expense routes at /api/expenses
 app.use("/api/expenses", authenticateToken, expenseRoutes);
+app.use("/api/payment", authenticateToken, paymentRoutes);
+app.use("/api/premium", premiumRoutes);
 
-// Serve static files
 app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
