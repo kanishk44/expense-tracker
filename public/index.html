@@ -71,6 +71,14 @@
                 </div>
 
                 <div class="col-md-3">
+                  <label for="type" class="form-label">Type</label>
+                  <select class="form-select" id="type" required>
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                  </select>
+                </div>
+
+                <div class="col-md-3">
                   <label for="category" class="form-label">Category</label>
                   <select class="form-select" id="category" required>
                     <option value="">Choose...</option>
@@ -95,22 +103,101 @@
             </div>
           </div>
 
-          <div class="card shadow-sm">
+          <div class="card shadow-sm mb-4">
             <div class="card-body">
-              <h2 class="card-title mb-4">Expenses List</h2>
+              <div
+                class="d-flex justify-content-between align-items-center mb-4"
+              >
+                <h2 class="card-title mb-0">Expenses & Income</h2>
+                <div class="d-flex gap-2">
+                  <select class="form-select" id="periodFilter">
+                    <option value="all">All Time</option>
+                    <option value="daily">Today</option>
+                    <option value="weekly">This Week</option>
+                    <option value="monthly">This Month</option>
+                  </select>
+                  <select
+                    class="form-select"
+                    id="pageSizeFilter"
+                    style="width: auto"
+                  >
+                    <option value="5">5 per page</option>
+                    <option value="10">10 per page</option>
+                    <option value="20">20 per page</option>
+                    <option value="30">30 per page</option>
+                    <option value="40">40 per page</option>
+                  </select>
+                  <button id="downloadBtn" class="btn btn-secondary" disabled>
+                    <i class="bi bi-download"></i> Download
+                  </button>
+                </div>
+              </div>
+
+              <div class="row mb-4">
+                <div class="col-md-4">
+                  <div class="card bg-success text-white">
+                    <div class="card-body">
+                      <h5 class="card-title">Total Income</h5>
+                      <h3 id="totalIncome">₹0.00</h3>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card bg-danger text-white">
+                    <div class="card-body">
+                      <h5 class="card-title">Total Expenses</h5>
+                      <h3 id="totalExpenses">₹0.00</h3>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card bg-info text-white">
+                    <div class="card-body">
+                      <h5 class="card-title">Balance</h5>
+                      <h3 id="balance">₹0.00</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="table-responsive">
                 <table class="table table-hover">
-                  <thead class="table-light">
+                  <thead>
                     <tr>
-                      <th>Description</th>
-                      <th>Amount</th>
-                      <th>Category</th>
                       <th>Date</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Category</th>
+                      <th>Amount</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody id="expenseTableBody"></tbody>
                 </table>
+              </div>
+
+              <!-- Add this after the expense table but before the closing card div -->
+              <div
+                class="d-flex justify-content-between align-items-center mt-4"
+              >
+                <div class="text-muted">
+                  Showing <span id="currentRange">0-0</span> of
+                  <span id="totalItems">0</span> entries
+                </div>
+                <nav aria-label="Expense pagination">
+                  <ul class="pagination mb-0">
+                    <li class="page-item" id="previousPage">
+                      <button class="page-link" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                      </button>
+                    </li>
+                    <li class="page-item" id="nextPage">
+                      <button class="page-link" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
               </div>
             </div>
           </div>
@@ -174,70 +261,115 @@
         });
       }
 
+      // Add these variables at the top of your script
+      let currentPage = 1;
+      let totalPages = 1;
+      let pageSize = parseInt(localStorage.getItem("pageSize")) || 10;
+
+      // Add this function to initialize page size
+      function initializePageSize() {
+        const pageSizeFilter = document.getElementById("pageSizeFilter");
+        pageSizeFilter.value = pageSize.toString();
+
+        // Add event listener for page size changes
+        pageSizeFilter.addEventListener("change", (e) => {
+          pageSize = parseInt(e.target.value);
+          localStorage.setItem("pageSize", pageSize);
+          currentPage = 1; // Reset to first page when changing page size
+          loadExpenses();
+        });
+      }
+
       // Fetch and display expenses
-      function loadExpenses() {
-        fetchWithAuth("/api/expenses")
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error("Failed to fetch expenses");
-            }
-            return response.json();
-          })
-          .then((data) => {
-            const tableBody = document.getElementById("expenseTableBody");
-            tableBody.innerHTML = "";
+      async function loadExpenses() {
+        try {
+          const period = document.getElementById("periodFilter").value;
+          const response = await fetchWithAuth(
+            `/api/expenses?period=${period}&page=${currentPage}&pageSize=${pageSize}`
+          );
+          const data = await response.json();
 
-            // Ensure data is an array
-            const expenses = Array.isArray(data) ? data : [];
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to fetch expenses");
+          }
 
-            if (expenses.length === 0) {
-              tableBody.innerHTML = `
-                <tr>
-                  <td colspan="5" class="text-center">No expenses found</td>
-                </tr>
-              `;
-              return;
-            }
+          // Update totals
+          document.getElementById(
+            "totalIncome"
+          ).textContent = `₹${data.totals.income.toFixed(2)}`;
+          document.getElementById(
+            "totalExpenses"
+          ).textContent = `₹${data.totals.expense.toFixed(2)}`;
+          document.getElementById("balance").textContent = `₹${(
+            data.totals.income - data.totals.expense
+          ).toFixed(2)}`;
 
-            expenses.forEach((expense) => {
-              const row = document.createElement("tr");
-              row.innerHTML = `
-                <td>${expense.description}</td>
-                <td>₹${expense.amount}</td>
-                <td><span class="badge bg-secondary">${
-                  expense.category
-                }</span></td>
-                <td>${new Date(expense.date).toLocaleDateString()}</td>
-                <td>
-                  <button onclick="editExpense(${
-                    expense.id
-                  })" class="btn btn-sm btn-outline-primary me-2">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button onclick="deleteExpense(${
-                    expense.id
-                  })" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              `;
-              tableBody.appendChild(row);
-            });
+          // Update pagination info
+          totalPages = data.pagination.totalPages;
+          const startRange = (currentPage - 1) * pageSize + 1;
+          const endRange = Math.min(
+            startRange + pageSize - 1,
+            data.pagination.totalItems
+          );
 
-            document.getElementById("userName").textContent =
-              localStorage.getItem("userName") || "";
-          })
-          .catch((error) => {
-            console.error("Error loading expenses:", error);
-            const tableBody = document.getElementById("expenseTableBody");
+          document.getElementById(
+            "currentRange"
+          ).textContent = `${startRange}-${endRange}`;
+          document.getElementById("totalItems").textContent =
+            data.pagination.totalItems;
+
+          // Update pagination buttons
+          const previousPage = document.getElementById("previousPage");
+          const nextPage = document.getElementById("nextPage");
+
+          previousPage.classList.toggle(
+            "disabled",
+            !data.pagination.hasPreviousPage
+          );
+          nextPage.classList.toggle("disabled", !data.pagination.hasNextPage);
+
+          // Update table
+          const tableBody = document.getElementById("expenseTableBody");
+          tableBody.innerHTML = "";
+
+          if (data.expenses.length === 0) {
             tableBody.innerHTML = `
               <tr>
-                <td colspan="5" class="text-center text-danger">
-                  Error loading expenses. Please try again.
-                </td>
+                <td colspan="6" class="text-center">No expenses found</td>
               </tr>
             `;
+            return;
+          }
+
+          data.expenses.forEach((expense) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${new Date(expense.date).toLocaleDateString()}</td>
+              <td><span class="badge bg-${
+                expense.type === "income" ? "success" : "danger"
+              }">${expense.type}</span></td>
+              <td>${expense.description}</td>
+              <td>${expense.category}</td>
+              <td>₹${expense.amount}</td>
+              <td>
+                <button onclick="editExpense(${
+                  expense.id
+                })" class="btn btn-sm btn-outline-primary me-2">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button onclick="deleteExpense(${
+                  expense.id
+                })" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            `;
+            tableBody.appendChild(row);
           });
+        } catch (error) {
+          console.error("Error loading expenses:", error);
+          alert("Failed to load expenses. Please try again.");
+        }
       }
 
       // Add new expense
@@ -250,6 +382,7 @@
             description: document.getElementById("description").value.trim(),
             amount: parseFloat(document.getElementById("amount").value),
             category: document.getElementById("category").value,
+            type: document.getElementById("type").value,
           };
 
           try {
@@ -418,15 +551,20 @@
         const premiumBadge = document.getElementById("premiumBadge");
         const leaderboardSection =
           document.getElementById("leaderboardSection");
+        const downloadBtn = document.getElementById("downloadBtn");
 
         if (isPremium) {
           premiumButton.style.display = "none";
           premiumBadge.classList.remove("d-none");
           leaderboardSection.classList.remove("d-none");
+          downloadBtn.disabled = false;
+          downloadBtn.title = "Download expenses";
         } else {
           premiumButton.style.display = "block";
           premiumBadge.classList.add("d-none");
           leaderboardSection.classList.add("d-none");
+          downloadBtn.disabled = true;
+          downloadBtn.title = "Premium feature only";
         }
       }
 
@@ -465,6 +603,63 @@
             alert("Error fetching leaderboard. Please try again.");
           }
         });
+
+      // Add this to your existing script
+      document
+        .getElementById("periodFilter")
+        .addEventListener("change", loadExpenses);
+      document
+        .getElementById("downloadBtn")
+        .addEventListener("click", downloadExpenses);
+
+      async function downloadExpenses() {
+        try {
+          const response = await fetchWithAuth("/api/expenses/download");
+          if (!response.ok) {
+            throw new Error("Failed to download expenses");
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "expenses.csv";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } catch (error) {
+          console.error("Error downloading expenses:", error);
+          alert("Failed to download expenses. Please try again.");
+        }
+      }
+
+      // Add pagination event listeners
+      document.getElementById("previousPage").addEventListener("click", () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadExpenses();
+        }
+      });
+
+      document.getElementById("nextPage").addEventListener("click", () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          loadExpenses();
+        }
+      });
+
+      // Reset pagination when filter changes
+      document.getElementById("periodFilter").addEventListener("change", () => {
+        currentPage = 1;
+        loadExpenses();
+      });
+
+      // Call initializePageSize when the page loads
+      document.addEventListener("DOMContentLoaded", () => {
+        initializePageSize();
+        loadExpenses();
+        updatePremiumStatus();
+      });
     </script>
   </body>
 </html>

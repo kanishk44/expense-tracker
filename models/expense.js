@@ -21,6 +21,11 @@ const Expense = sequelize.define("expense", {
     type: Sequelize.STRING,
     allowNull: false,
   },
+  type: {
+    type: Sequelize.ENUM("expense", "income"),
+    allowNull: false,
+    defaultValue: "expense",
+  },
   userId: {
     type: Sequelize.INTEGER,
     allowNull: false,
