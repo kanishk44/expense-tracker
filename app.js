@@ -8,11 +8,21 @@ const path = require("path");
 const paymentRoutes = require("./routes/payment");
 const premiumRoutes = require("./routes/premium");
 const passwordRoutes = require("./routes/password");
+const morgan = require("morgan");
+const fs = require("fs");
 
 const app = express();
 
+const accessLogStream = fs.createWriteStream(
+  path.join(__dirname, "access.log"),
+  {
+    flags: "a",
+  }
+);
+
 app.use(bodyParser.json());
 app.use(express.static("public"));
+app.use(morgan("combined", { stream: accessLogStream }));
 
 app.use("/api/user", userRoutes);
 app.use("/api/expenses", authenticateToken, expenseRoutes);
@@ -41,8 +51,8 @@ app.get("/", (req, res) => {
 sequelize
   .sync({ alter: true })
   .then(() => {
-    app.listen(3000, () => {
-      console.log("Server is running on port 3000");
+    app.listen(process.env.PORT, () => {
+      console.log(`Server is running on port ${process.env.PORT}`);
     });
   })
   .catch((err) => {
