@@ -31,4 +31,8 @@ const User = sequelize.define("user", {
   },
 });
 
+const ForgotPasswordRequest = require("./forgotPasswordRequest");
+User.hasMany(ForgotPasswordRequest);
+ForgotPasswordRequest.belongsTo(User);
+
 module.exports = User;

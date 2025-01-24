@@ -7,6 +7,7 @@ const { authenticateToken } = require("./middleware/auth");
 const path = require("path");
 const paymentRoutes = require("./routes/payment");
 const premiumRoutes = require("./routes/premium");
+const passwordRoutes = require("./routes/password");
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/expenses", authenticateToken, expenseRoutes);
 app.use("/api/payment", authenticateToken, paymentRoutes);
 app.use("/api/premium", premiumRoutes);
+app.use("/password", passwordRoutes);
 
 app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));

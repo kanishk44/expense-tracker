@@ -54,6 +54,18 @@
               <div class="text-center mt-3">
                 <a href="/signup">Don't have an account? Sign Up</a>
               </div>
+
+              <!-- Add this below the login form -->
+              <div class="text-center mt-3">
+                <button
+                  type="button"
+                  class="btn btn-link"
+                  data-bs-toggle="modal"
+                  data-bs-target="#forgotPasswordModal"
+                >
+                  Forgot Password?
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -103,6 +115,73 @@
           } catch (error) {
             errorAlert.textContent = error.message;
             errorAlert.classList.remove("d-none");
+          }
+        });
+    </script>
+
+    <!-- Add this modal at the end of body -->
+    <div class="modal fade" id="forgotPasswordModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Reset Password</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="forgotPasswordForm">
+              <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <input
+                  type="email"
+                  class="form-control"
+                  id="resetEmail"
+                  required
+                  placeholder="Enter your email"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">
+                Send Reset Link
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById("forgotPasswordForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const email = document.getElementById("resetEmail").value;
+
+          try {
+            const response = await fetch("/password/forgotpassword", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(data.error || "Something went wrong");
+            }
+
+            alert("Password reset link has been sent to your email");
+            document
+              .getElementById("forgotPasswordModal")
+              .querySelector(".btn-close")
+              .click();
+          } catch (error) {
+            alert(error.message);
           }
         });
     </script>
