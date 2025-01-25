@@ -619,14 +619,28 @@
             throw new Error("Failed to download expenses");
           }
 
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "expenses.csv";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+          const data = await response.json();
+
+          // Create a clickable link
+          const downloadLink = document.createElement("div");
+          downloadLink.className = "d-flex flex-column align-items-start gap-2";
+
+          const link = document.createElement("a");
+          link.href = data.fileUrl;
+          link.className = "btn btn-success";
+          link.innerHTML =
+            '<i class="bi bi-download"></i> Download Expense Report';
+
+          const expiryNote = document.createElement("small");
+          expiryNote.className = "text-muted";
+          expiryNote.textContent = "* Link expires in 1 hour";
+
+          downloadLink.appendChild(link);
+          downloadLink.appendChild(expiryNote);
+
+          // Replace the download button with the link
+          const downloadBtn = document.getElementById("downloadBtn");
+          downloadBtn.parentNode.replaceChild(downloadLink, downloadBtn);
         } catch (error) {
           console.error("Error downloading expenses:", error);
           alert("Failed to download expenses. Please try again.");

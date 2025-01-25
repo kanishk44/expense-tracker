@@ -2,6 +2,18 @@ const Expense = require("../models/expense");
 const User = require("../models/user");
 const sequelize = require("../util/database");
 const { Op } = require("sequelize");
+const AWS = require("aws-sdk");
+const fs = require("fs");
+const path = require("path");
+
+// Configure AWS SDK
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
+const s3 = new AWS.S3();
 
 exports.getExpenses = async (req, res) => {
   try {
@@ -188,7 +200,6 @@ exports.updateExpense = async (req, res) => {
 
 exports.downloadExpenses = async (req, res) => {
   try {
-    // Check if user is premium
     if (!req.user.isPremium) {
       return res.status(403).json({ error: "Premium feature only" });
     }
@@ -198,7 +209,6 @@ exports.downloadExpenses = async (req, res) => {
       order: [["date", "DESC"]],
     });
 
-    // Create CSV content
     const headers = "Date,Type,Description,Category,Amount\n";
     const rows = expenses
       .map((expense) => {
@@ -209,12 +219,37 @@ exports.downloadExpenses = async (req, res) => {
       .join("\n");
 
     const csvContent = headers + rows;
+    const filename = `expenses_${req.user.userId}_${Date.now()}.csv`;
+    const filePath = path.join(__dirname, "../uploads", filename);
 
-    // Set response headers for file download
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=expenses.csv");
+    // Write CSV to a temporary file
+    fs.writeFileSync(filePath, csvContent);
 
-    res.send(csvContent);
+    const fileStream = fs.createReadStream(filePath);
+
+    const params = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: filename,
+      Body: fileStream,
+      ContentType: "text/csv",
+    };
+
+    s3.upload(params, (err, data) => {
+      // Clean up temporary file
+      fs.unlinkSync(filePath);
+
+      if (err) {
+        console.error("Upload error:", err);
+        return res
+          .status(500)
+          .json({ message: "File upload failed", error: err });
+      }
+
+      res.status(200).json({
+        message: "File uploaded successfully",
+        fileUrl: data.Location,
+      });
+    });
   } catch (err) {
     console.error("Error downloading expenses:", err);
     res.status(500).json({ error: "Failed to download expenses" });
