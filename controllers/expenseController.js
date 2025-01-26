@@ -84,7 +84,6 @@ exports.getExpenses = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Error fetching expenses:", err);
     res.status(500).json({ error: "Failed to fetch expenses" });
   }
 };
@@ -118,7 +117,6 @@ exports.createExpense = async (req, res) => {
     res.status(201).json(expense);
   } catch (err) {
     await t.rollback();
-    console.error("Error creating expense:", err);
     res.status(500).json({ error: "Failed to create expense" });
   }
 };
@@ -152,7 +150,6 @@ exports.deleteExpense = async (req, res) => {
     res.status(200).json({ message: "Expense deleted successfully" });
   } catch (err) {
     await t.rollback();
-    console.error("Error deleting expense:", err);
     res.status(500).json({ error: "Failed to delete expense" });
   }
 };
@@ -193,7 +190,6 @@ exports.updateExpense = async (req, res) => {
     res.status(200).json({ message: "Expense updated successfully" });
   } catch (err) {
     await t.rollback();
-    console.error("Error updating expense:", err);
     res.status(500).json({ error: "Failed to update expense" });
   }
 };
@@ -246,7 +242,6 @@ exports.downloadExpenses = async (req, res) => {
       fs.unlinkSync(filePath);
 
       if (err) {
-        console.error("Upload error:", err);
         return res
           .status(500)
           .json({ message: "File upload failed", error: err });
@@ -265,7 +260,6 @@ exports.downloadExpenses = async (req, res) => {
       });
     });
   } catch (err) {
-    console.error("Error downloading expenses:", err);
     res.status(500).json({ error: "Failed to download expenses" });
   }
 };
