@@ -91,6 +91,7 @@ exports.login = async (req, res) => {
       isPremium: user.isPremium,
     });
   } catch (err) {
+    console.log("Login error: ", err);
     res.status(500).json({ error: "Error during login" });
   }
 };
