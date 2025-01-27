@@ -30,6 +30,10 @@ app.use("/api/payment", authenticateToken, paymentRoutes);
 app.use("/api/premium", premiumRoutes);
 app.use("/password", passwordRoutes);
 
+app.get("/", (req, res) => {
+  res.redirect("/login");
+});
+
 app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
@@ -38,18 +42,12 @@ app.get("/signup", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "signup.html"));
 });
 
-app.get("/", (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1] || req.query.token;
-  console.log(token);
-  if (!token) {
-    return res.redirect("/login");
-  }
-
+app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 sequelize
-  .sync({ alter: true })
+  .sync()
   .then(() => {
     app.listen(process.env.PORT, () => {
       console.log(`Server is running on port ${process.env.PORT}`);
