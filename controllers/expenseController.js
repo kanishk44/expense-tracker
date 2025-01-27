@@ -84,7 +84,6 @@ exports.getExpenses = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Error fetching expenses:", err);
     res.status(500).json({ error: "Failed to fetch expenses" });
   }
 };
@@ -118,7 +117,6 @@ exports.createExpense = async (req, res) => {
     res.status(201).json(expense);
   } catch (err) {
     await t.rollback();
-    console.error("Error creating expense:", err);
     res.status(500).json({ error: "Failed to create expense" });
   }
 };
@@ -152,7 +150,6 @@ exports.deleteExpense = async (req, res) => {
     res.status(200).json({ message: "Expense deleted successfully" });
   } catch (err) {
     await t.rollback();
-    console.error("Error deleting expense:", err);
     res.status(500).json({ error: "Failed to delete expense" });
   }
 };
@@ -193,7 +190,6 @@ exports.updateExpense = async (req, res) => {
     res.status(200).json({ message: "Expense updated successfully" });
   } catch (err) {
     await t.rollback();
-    console.error("Error updating expense:", err);
     res.status(500).json({ error: "Failed to update expense" });
   }
 };
@@ -220,7 +216,14 @@ exports.downloadExpenses = async (req, res) => {
 
     const csvContent = headers + rows;
     const filename = `expenses_${req.user.userId}_${Date.now()}.csv`;
-    const filePath = path.join(__dirname, "../uploads", filename);
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(__dirname, "../uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir);
+    }
+
+    const filePath = path.join(uploadsDir, filename);
 
     // Write CSV to a temporary file
     fs.writeFileSync(filePath, csvContent);
@@ -239,19 +242,24 @@ exports.downloadExpenses = async (req, res) => {
       fs.unlinkSync(filePath);
 
       if (err) {
-        console.error("Upload error:", err);
         return res
           .status(500)
           .json({ message: "File upload failed", error: err });
       }
 
+      // Generate a signed URL that expires in 1 hour
+      const signedUrl = s3.getSignedUrl("getObject", {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: filename,
+        Expires: 3600, // URL expires in 1 hour
+      });
+
       res.status(200).json({
         message: "File uploaded successfully",
-        fileUrl: data.Location,
+        fileUrl: signedUrl,
       });
     });
   } catch (err) {
-    console.error("Error downloading expenses:", err);
     res.status(500).json({ error: "Failed to download expenses" });
   }
 };

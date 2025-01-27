@@ -236,6 +236,18 @@
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
+      // Immediately redirect if no token (before any other code runs)
+      if (!localStorage.getItem("token")) {
+        window.location.href = "/login";
+      } else {
+        // Only run the rest of the code if we have a token
+        document.addEventListener("DOMContentLoaded", () => {
+          initializePageSize();
+          loadExpenses();
+          updatePremiumStatus();
+        });
+      }
+
       // Check if user is authenticated
       function checkAuth() {
         const token = localStorage.getItem("token");
@@ -244,9 +256,6 @@
           return;
         }
       }
-
-      // Run auth check immediately when page loads
-      checkAuth();
 
       // Add this function to handle API calls
       function fetchWithAuth(url, options = {}) {
@@ -666,13 +675,6 @@
       document.getElementById("periodFilter").addEventListener("change", () => {
         currentPage = 1;
         loadExpenses();
-      });
-
-      // Call initializePageSize when the page loads
-      document.addEventListener("DOMContentLoaded", () => {
-        initializePageSize();
-        loadExpenses();
-        updatePremiumStatus();
       });
     </script>
   </body>
