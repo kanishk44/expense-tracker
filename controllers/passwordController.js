@@ -13,18 +13,15 @@ exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Find user with this email
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Create password reset request
     const passwordRequest = await ForgotPasswordRequest.create({
-      userId: user.id,
+      userId: user._id,
     });
 
-    // Send email using MailerSend
     const sentFrom = new Sender(
       "expense-tracker@kanishkcodes.biz",
       "Expense Tracker"
@@ -39,7 +36,7 @@ exports.forgotPassword = async (req, res) => {
         `
         <h1>Reset Your Password</h1>
         <p>You requested to reset your password. Click the link below to reset it:</p>
-        <p><a href="${process.env.APP_URL}/password/resetpassword/${passwordRequest.id}">Reset Password</a></p>
+        <p><a href="${process.env.APP_URL}/password/resetpassword/${passwordRequest._id}">Reset Password</a></p>
         <p>If you didn't request this, please ignore this email.</p>
         <p>This link will only work once and expires after use.</p>
       `
@@ -59,11 +56,10 @@ exports.getResetPasswordPage = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Find the password reset request
     const passwordRequest = await ForgotPasswordRequest.findOne({
-      where: { id, isActive: true },
-      include: [User],
-    });
+      _id: id,
+      isActive: true,
+    }).populate("userId");
 
     if (!passwordRequest) {
       return res.status(404).send(`
@@ -89,11 +85,10 @@ exports.resetPassword = async (req, res) => {
     const { id } = req.params;
     const { newPassword } = req.body;
 
-    // Find the password reset request
     const passwordRequest = await ForgotPasswordRequest.findOne({
-      where: { id, isActive: true },
-      include: [User],
-    });
+      _id: id,
+      isActive: true,
+    }).populate("userId");
 
     if (!passwordRequest) {
       return res.status(400).json({
@@ -101,17 +96,13 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user's password
-    await User.update(
-      { password: hashedPassword },
-      { where: { id: passwordRequest.userId } }
-    );
+    await User.findByIdAndUpdate(passwordRequest.userId._id, {
+      password: hashedPassword,
+    });
 
-    // Deactivate the reset request
-    await passwordRequest.update({ isActive: false });
+    await ForgotPasswordRequest.findByIdAndUpdate(id, { isActive: false });
 
     res.json({ message: "Password reset successful" });
   } catch (err) {

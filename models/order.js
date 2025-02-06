@@ -1,40 +1,30 @@
-const Sequelize = require("sequelize");
-const sequelize = require("../util/database");
-const User = require("./user");
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const Order = sequelize.define("order", {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true,
-  },
-  orderId: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  paymentId: {
-    type: Sequelize.STRING,
-  },
-  status: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  amount: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-  },
-  userId: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-    references: {
-      model: User,
-      key: "id",
+const orderSchema = new Schema(
+  {
+    orderId: {
+      type: String,
+      required: true,
+    },
+    paymentId: {
+      type: String,
+    },
+    status: {
+      type: String,
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
   },
-});
+  { timestamps: true }
+);
 
-Order.belongsTo(User, { foreignKey: "userId" });
-User.hasMany(Order, { foreignKey: "userId" });
-
-module.exports = Order;
+module.exports = mongoose.model("Order", orderSchema);

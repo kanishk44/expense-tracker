@@ -1,6 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const sequelize = require("./util/database");
+const connectDB = require("./util/database");
 const expenseRoutes = require("./routes/expense");
 const userRoutes = require("./routes/user");
 const { authenticateToken } = require("./middleware/auth");
@@ -19,6 +19,9 @@ const accessLogStream = fs.createWriteStream(
     flags: "a",
   }
 );
+
+// Connect to MongoDB
+connectDB();
 
 app.use(bodyParser.json());
 app.use(express.static("public"));
@@ -46,13 +49,6 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-sequelize
-  .sync()
-  .then(() => {
-    app.listen(process.env.PORT, () => {
-      console.log(`Server is running on port ${process.env.PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.log("Error connecting to database:", err);
-  });
+app.listen(process.env.PORT, () => {
+  console.log(`Server is running on port ${process.env.PORT}`);
+});

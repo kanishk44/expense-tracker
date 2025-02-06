@@ -1,38 +1,37 @@
-const Sequelize = require("sequelize");
-const sequelize = require("../util/database");
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const User = sequelize.define("user", {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true,
+const userSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
+    totalExpenses: {
+      type: Number,
+      default: 0,
+    },
   },
-  name: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  email: {
-    type: Sequelize.STRING,
-    allowNull: false,
-    unique: true,
-  },
-  password: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  isPremium: {
-    type: Sequelize.BOOLEAN,
-    defaultValue: false,
-  },
-  totalExpenses: {
-    type: Sequelize.DECIMAL(10, 2),
-    defaultValue: 0,
-  },
+  { timestamps: true }
+);
+
+userSchema.virtual("forgotPasswordRequests", {
+  ref: "ForgotPasswordRequest",
+  localField: "_id",
+  foreignField: "userId",
 });
 
-const ForgotPasswordRequest = require("./forgotPasswordRequest");
-User.hasMany(ForgotPasswordRequest);
-ForgotPasswordRequest.belongsTo(User);
-
-module.exports = User;
+module.exports = mongoose.model("User", userSchema);
