@@ -1,6 +1,6 @@
 # Expense Tracker
 
-A modern full-stack expense management solution built with Node.js, Express, MySQL, and Bootstrap. Track your personal finances with ease through an intuitive and responsive interface.
+A modern full-stack expense management solution built with Node.js, Express, MongoDB, and Bootstrap. Track your personal finances with ease through an intuitive and responsive interface.
 
 ## Key Features
 
@@ -10,7 +10,7 @@ Experience seamless expense tracking with:
 - Responsive design that works beautifully across all devices
 - Real-time updates without page refreshes
 - Modern, clean interface focused on efficiency
-- Secure MySQL data storage with Sequelize ORM
+- Secure MongoDB data storage with Mongoose ODM
 - Premium features including expense reports and leaderboards
 
 ## Technology Foundation
@@ -28,18 +28,19 @@ Our carefully selected tech stack ensures reliability and performance:
 
 - Node.js environment
 - Express.js framework
-- Sequelize ORM
-- MySQL database
+- MongoDB with Mongoose ODM
 - AWS S3 storage
 - Razorpay payments
+- JWT for authentication
 
 ## Getting Started
 
 ### System Requirements
 
 - Node.js v14+
-- MySQL Server
-- Default MySQL credentials (username: 'root', password: 'Pass@123')
+- MongoDB Atlas account or local MongoDB installation
+- AWS account for S3 storage
+- Razorpay account for payments
 
 ### Setup Instructions
 
@@ -56,19 +57,10 @@ Our carefully selected tech stack ensures reliability and performance:
    npm install
    ```
 
-3. Initialize database:
-
-   ```sql
-   CREATE DATABASE expense_tracker;
-   ```
-
-4. Create `.env` configuration:
+3. Create `.env` configuration:
 
    ```env
-   DB_NAME=expense-tracker
-   DB_USER=root
-   DB_PASSWORD=<Your_Password>
-   DB_HOST=localhost
+   MONGO_URL=your_mongodb_connection_string
    RAZORPAY_KEY_ID=your_razorpay_key_id
    RAZORPAY_KEY_SECRET=your_razorpay_key_secret
    ACCESS_TOKEN_SECRET=your_access_token_secret
@@ -81,7 +73,7 @@ Our carefully selected tech stack ensures reliability and performance:
    AWS_REGION=your_region
    ```
 
-5. Launch the application:
+4. Launch the application:
    ```bash
    npm start
    ```
@@ -104,6 +96,45 @@ Our carefully selected tech stack ensures reliability and performance:
 ### Premium Features
 
 - `GET /api/premium/leaderboard` - View expense rankings
+
+## Data Models
+
+### User Schema
+
+```javascript
+{
+  name: String,
+  email: String,
+  password: String,
+  isPremium: Boolean,
+  totalExpenses: Number
+}
+```
+
+### Expense Schema
+
+```javascript
+{
+  description: String,
+  amount: Number,
+  category: String,
+  type: String,
+  userId: ObjectId,
+  date: Date
+}
+```
+
+### Order Schema
+
+```javascript
+{
+  orderId: String,
+  paymentId: String,
+  status: String,
+  amount: Number,
+  userId: ObjectId
+}
+```
 
 ## Contributing
 
@@ -138,8 +169,9 @@ Licensed under the MIT License. See LICENSE file for details.
 
 Special thanks to:
 
-- Bootstrap team
-- Sequelize team
+- MongoDB team
+- Mongoose team
 - Express.js team
+- Bootstrap team
 - Razorpay
 - AWS
