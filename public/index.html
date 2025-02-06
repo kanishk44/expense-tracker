@@ -260,6 +260,11 @@
       // Add this function to handle API calls
       function fetchWithAuth(url, options = {}) {
         const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "/login";
+          return Promise.reject(new Error("No token found"));
+        }
+
         return fetch(url, {
           ...options,
           headers: {
@@ -267,6 +272,16 @@
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+        }).then((response) => {
+          if (response.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("userName");
+            localStorage.removeItem("isPremium");
+            localStorage.removeItem("userId");
+            window.location.href = "/login";
+            throw new Error("Invalid token");
+          }
+          return response;
         });
       }
 
@@ -361,14 +376,14 @@
               <td>${expense.category}</td>
               <td>₹${expense.amount}</td>
               <td>
-                <button onclick="editExpense(${
-                  expense.id
-                })" class="btn btn-sm btn-outline-primary me-2">
+                <button onclick="editExpense('${
+                  expense._id
+                }')" class="btn btn-sm btn-outline-primary me-2">
                   <i class="bi bi-pencil"></i>
                 </button>
-                <button onclick="deleteExpense(${
-                  expense.id
-                })" class="btn btn-sm btn-outline-danger">
+                <button onclick="deleteExpense('${
+                  expense._id
+                }')" class="btn btn-sm btn-outline-danger">
                   <i class="bi bi-trash"></i>
                 </button>
               </td>
@@ -417,29 +432,55 @@
         });
 
       // Delete expense
-      function deleteExpense(id) {
-        if (confirm("Are you sure you want to delete this expense?")) {
-          fetchWithAuth(`/api/expenses/${id}`, {
+      async function deleteExpense(id) {
+        try {
+          if (!confirm("Are you sure you want to delete this expense?")) {
+            return;
+          }
+
+          const response = await fetchWithAuth(`/api/expenses/${id}`, {
             method: "DELETE",
-          }).then(() => loadExpenses());
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || "Failed to delete expense");
+          }
+
+          await loadExpenses();
+        } catch (error) {
+          console.error("Error deleting expense:", error);
+          alert(error.message);
         }
       }
 
       // Edit expense
-      function editExpense(id) {
-        const newDescription = prompt("Enter new description:");
-        const newAmount = prompt("Enter new amount:");
-        const newCategory = prompt("Enter new category:");
+      async function editExpense(id) {
+        try {
+          const newDescription = prompt("Enter new description:");
+          const newAmount = prompt("Enter new amount:");
+          const newCategory = prompt("Enter new category:");
 
-        if (newDescription && newAmount && newCategory) {
-          fetchWithAuth(`/api/expenses/${id}`, {
-            method: "PUT",
-            body: JSON.stringify({
-              description: newDescription,
-              amount: newAmount,
-              category: newCategory,
-            }),
-          }).then(() => loadExpenses());
+          if (newDescription && newAmount && newCategory) {
+            const response = await fetchWithAuth(`/api/expenses/${id}`, {
+              method: "PUT",
+              body: JSON.stringify({
+                description: newDescription,
+                amount: parseFloat(newAmount),
+                category: newCategory,
+              }),
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.error || "Failed to update expense");
+            }
+
+            await loadExpenses();
+          }
+        } catch (error) {
+          console.error("Error updating expense:", error);
+          alert(error.message);
         }
       }
 
@@ -451,6 +492,7 @@
         localStorage.removeItem("token");
         localStorage.removeItem("userName");
         localStorage.removeItem("isPremium");
+        localStorage.removeItem("userId");
         window.location.href = "/login";
       }
 

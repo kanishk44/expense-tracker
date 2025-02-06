@@ -3,7 +3,6 @@ const Order = require("../models/order");
 const User = require("../models/user");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const sequelize = require("../util/database");
 const { JWT_SECRET } = require("../middleware/auth");
 
 const razorpay = new Razorpay({
@@ -14,11 +13,7 @@ const razorpay = new Razorpay({
 const PREMIUM_AMOUNT = 100; // ₹1 in paise
 
 exports.createOrder = async (req, res) => {
-  const t = await sequelize.transaction();
-
   try {
-    const { description, amount, category } = req.body;
-
     const options = {
       amount: PREMIUM_AMOUNT,
       currency: "INR",
@@ -26,42 +21,29 @@ exports.createOrder = async (req, res) => {
 
     const order = await razorpay.orders.create(options);
 
-    await Order.create(
-      {
-        orderId: order.id,
-        status: "PENDING",
-        userId: req.user.userId,
-        amount: PREMIUM_AMOUNT,
-      },
-      { transaction: t }
-    );
+    await Order.create({
+      orderId: order.id,
+      status: "PENDING",
+      userId: req.user.userId,
+      amount: PREMIUM_AMOUNT,
+    });
 
-    await t.commit();
     res.json({
       order_id: order.id,
       key_id: process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) {
-    await t.rollback();
+    console.error("Error creating order:", err);
     res.status(500).json({ error: "Failed to create order" });
   }
 };
 
 exports.updatePaymentStatus = async (req, res) => {
-  const t = await sequelize.transaction();
-
   try {
     const { order_id, payment_id, razorpay_signature, status } = req.body;
 
     if (status === "FAILED" && !payment_id) {
-      await Order.update(
-        { status: "FAILED" },
-        {
-          where: { orderId: order_id },
-          transaction: t,
-        }
-      );
-      await t.commit();
+      await Order.findOneAndUpdate({ orderId: order_id }, { status: "FAILED" });
       return res.json({ message: "Order marked as failed" });
     }
 
@@ -74,40 +56,30 @@ exports.updatePaymentStatus = async (req, res) => {
     const isAuthentic = expectedSignature === razorpay_signature;
 
     if (!isAuthentic) {
-      await Order.update(
-        { status: "FAILED" },
-        {
-          where: { orderId: order_id },
-          transaction: t,
-        }
-      );
-      await t.commit();
+      await Order.findOneAndUpdate({ orderId: order_id }, { status: "FAILED" });
       return res.status(400).json({ error: "Payment verification failed" });
     }
 
     const payment = await razorpay.payments.fetch(payment_id);
 
     if (payment.status === "captured") {
-      await Order.update(
-        { status: "COMPLETED", paymentId: payment_id },
+      await Order.findOneAndUpdate(
+        { orderId: order_id },
         {
-          where: { orderId: order_id },
-          transaction: t,
+          status: "COMPLETED",
+          paymentId: payment_id,
         }
       );
 
-      await User.update(
+      const user = await User.findByIdAndUpdate(
+        req.user.userId,
         { isPremium: true },
-        {
-          where: { id: req.user.userId },
-          transaction: t,
-        }
+        { new: true }
       );
 
-      const user = await User.findByPk(req.user.userId, { transaction: t });
       const token = jwt.sign(
         {
-          userId: user.id,
+          userId: user._id,
           email: user.email,
           isPremium: true,
         },
@@ -115,30 +87,30 @@ exports.updatePaymentStatus = async (req, res) => {
         { expiresIn: "24h" }
       );
 
-      await t.commit();
       res.json({
         message: "Payment successful",
         token,
       });
     } else {
-      await Order.update(
-        { status: "FAILED", paymentId: payment_id },
+      await Order.findOneAndUpdate(
+        { orderId: order_id },
         {
-          where: { orderId: order_id },
-          transaction: t,
+          status: "FAILED",
+          paymentId: payment_id,
         }
       );
-      await t.commit();
       res.status(400).json({ error: "Payment failed" });
     }
   } catch (err) {
-    await t.rollback();
+    console.error("Error updating payment status:", err);
     try {
-      await Order.update(
-        { status: "FAILED" },
-        { where: { orderId: req.body.order_id } }
+      await Order.findOneAndUpdate(
+        { orderId: req.body.order_id },
+        { status: "FAILED" }
       );
-    } catch (updateErr) {}
+    } catch (updateErr) {
+      console.error("Error updating order status:", updateErr);
+    }
     res.status(500).json({ error: "Failed to update payment status" });
   }
 };

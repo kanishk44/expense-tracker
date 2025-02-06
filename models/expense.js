@@ -1,48 +1,36 @@
-const Sequelize = require("sequelize");
-const sequelize = require("../util/database");
-const User = require("./user");
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const Expense = sequelize.define("expense", {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true,
-  },
-  description: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  amount: {
-    type: Sequelize.DECIMAL(10, 2),
-    allowNull: false,
-  },
-  category: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  type: {
-    type: Sequelize.ENUM("expense", "income"),
-    allowNull: false,
-    defaultValue: "expense",
-  },
-  userId: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-    references: {
-      model: User,
-      key: "id",
+const expenseSchema = new Schema(
+  {
+    description: {
+      type: String,
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    category: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["expense", "income"],
+      default: "expense",
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    date: {
+      type: Date,
+      default: Date.now,
     },
   },
-  date: {
-    type: Sequelize.DATE,
-    allowNull: false,
-    defaultValue: Sequelize.NOW,
-  },
-});
+  { timestamps: true }
+);
 
-// Define relationship
-Expense.belongsTo(User, { foreignKey: "userId" });
-User.hasMany(Expense, { foreignKey: "userId" });
-
-module.exports = Expense;
+module.exports = mongoose.model("Expense", expenseSchema);

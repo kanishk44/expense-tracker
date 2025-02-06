@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 require("dotenv").config();
 
 const JWT_SECRET = process.env.ACCESS_TOKEN_SECRET;
@@ -17,9 +18,15 @@ const authenticateToken = (req, res, next) => {
       return res.status(401).json({ error: "Invalid token structure" });
     }
 
-    req.user = decoded;
+    // Convert string ID to MongoDB ObjectId
+    req.user = {
+      ...decoded,
+      userId: new mongoose.Types.ObjectId(decoded.userId),
+    };
+
     next();
   } catch (err) {
+    console.error("Auth error:", err);
     return res.status(401).json({ error: "Invalid token" });
   }
 };

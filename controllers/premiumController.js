@@ -6,10 +6,14 @@ exports.getLeaderboard = async (req, res) => {
       return res.status(403).json({ error: "Premium feature only" });
     }
 
-    const leaderboard = await User.findAll({
-      attributes: ["id", "name", "totalExpenses"],
-      order: [["totalExpenses", "DESC"]],
-    });
+    const leaderboard = await User.find(
+      {},
+      {
+        _id: 1,
+        name: 1,
+        totalExpenses: 1,
+      }
+    ).sort({ totalExpenses: -1 });
 
     res.json(leaderboard);
   } catch (err) {

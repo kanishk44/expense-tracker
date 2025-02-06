@@ -1,195 +1,168 @@
 const Expense = require("../models/expense");
 const User = require("../models/user");
-const sequelize = require("../util/database");
-const { Op } = require("sequelize");
 const AWS = require("aws-sdk");
 const fs = require("fs");
 const path = require("path");
+const mongoose = require("mongoose");
 
-// Configure AWS SDK
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-});
-
-const s3 = new AWS.S3();
+// Helper function to validate MongoDB ObjectId
+const isValidObjectId = (id) => {
+  return mongoose.Types.ObjectId.isValid(id);
+};
 
 exports.getExpenses = async (req, res) => {
   try {
     const { period } = req.query;
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
-    const offset = (page - 1) * pageSize;
+    const skip = (page - 1) * pageSize;
 
-    let whereClause = { userId: req.user.userId };
+    let query = { userId: req.user.userId };
 
     const now = new Date();
     const startOfDay = new Date(now.setHours(0, 0, 0, 0));
 
     switch (period) {
       case "daily":
-        whereClause.date = {
-          [Op.gte]: startOfDay,
-        };
+        query.date = { $gte: startOfDay };
         break;
       case "weekly":
-        whereClause.date = {
-          [Op.gte]: new Date(now.setDate(now.getDate() - 7)),
-        };
+        query.date = { $gte: new Date(now.setDate(now.getDate() - 7)) };
         break;
       case "monthly":
-        whereClause.date = {
-          [Op.gte]: new Date(now.setDate(1)),
-        };
+        query.date = { $gte: new Date(now.setDate(1)) };
         break;
     }
 
-    // Get total count for pagination
-    const count = await Expense.count({ where: whereClause });
-    const totalPages = Math.ceil(count / pageSize);
+    const [expenses, total] = await Promise.all([
+      Expense.find(query).sort({ date: -1 }).skip(skip).limit(pageSize),
+      Expense.countDocuments(query),
+    ]);
 
-    const expenses = await Expense.findAll({
-      where: whereClause,
-      order: [["date", "DESC"]],
-      limit: pageSize,
-      offset,
-    });
-
-    // Calculate totals for the current filter
-    const allExpenses = await Expense.findAll({
-      where: whereClause,
-      attributes: ["type", "amount"],
-    });
-
-    const totals = {
-      income: allExpenses
-        .filter((e) => e.type === "income")
-        .reduce((sum, e) => sum + Number(e.amount), 0),
-      expense: allExpenses
-        .filter((e) => e.type === "expense")
-        .reduce((sum, e) => sum + Number(e.amount), 0),
-    };
+    // Calculate totals
+    const allExpenses = await Expense.find(query);
+    const totals = allExpenses.reduce(
+      (acc, curr) => {
+        if (curr.type === "income") {
+          acc.income += curr.amount;
+        } else {
+          acc.expense += curr.amount;
+        }
+        return acc;
+      },
+      { income: 0, expense: 0 }
+    );
 
     res.json({
       expenses,
       totals,
       pagination: {
         currentPage: page,
-        totalPages,
-        hasNextPage: page < totalPages,
+        totalPages: Math.ceil(total / pageSize),
+        hasNextPage: skip + pageSize < total,
         hasPreviousPage: page > 1,
-        totalItems: count,
+        totalItems: total,
         pageSize,
       },
     });
   } catch (err) {
+    console.error("Error fetching expenses:", err);
     res.status(500).json({ error: "Failed to fetch expenses" });
   }
 };
 
 exports.createExpense = async (req, res) => {
-  const t = await sequelize.transaction();
-
   try {
     const { description, amount, category, type } = req.body;
 
-    const expense = await Expense.create(
-      {
-        description,
-        amount: parseFloat(amount),
-        category,
-        type,
-        userId: req.user.userId,
-      },
-      { transaction: t }
-    );
+    const expense = await Expense.create({
+      description,
+      amount: parseFloat(amount),
+      category,
+      type,
+      userId: req.user.userId,
+    });
 
     if (type === "expense") {
-      await User.increment("totalExpenses", {
-        by: parseFloat(amount),
-        where: { id: req.user.userId },
-        transaction: t,
+      await User.findByIdAndUpdate(req.user.userId, {
+        $inc: { totalExpenses: parseFloat(amount) },
       });
     }
 
-    await t.commit();
     res.status(201).json(expense);
   } catch (err) {
-    await t.rollback();
+    console.error("Error creating expense:", err);
     res.status(500).json({ error: "Failed to create expense" });
   }
 };
 
 exports.deleteExpense = async (req, res) => {
-  const t = await sequelize.transaction();
-
   try {
     const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ error: "Invalid expense ID" });
+    }
+
     const expense = await Expense.findOne({
-      where: { id, userId: req.user.userId },
-      transaction: t,
+      _id: new mongoose.Types.ObjectId(id),
+      userId: req.user.userId,
     });
 
     if (!expense) {
-      await t.rollback();
-      return res.status(404).json({
-        error: "Expense not found or you don't have permission to delete it",
+      return res.status(404).json({ error: "Expense not found" });
+    }
+
+    if (expense.type === "expense") {
+      await User.findByIdAndUpdate(req.user.userId, {
+        $inc: { totalExpenses: -expense.amount },
       });
     }
 
-    // Decrease user's total expenses
-    await User.decrement("totalExpenses", {
-      by: parseFloat(expense.amount),
-      where: { id: req.user.userId },
-      transaction: t,
-    });
-
-    await expense.destroy({ transaction: t });
-    await t.commit();
-    res.status(200).json({ message: "Expense deleted successfully" });
+    await expense.deleteOne();
+    res.json({ message: "Expense deleted successfully" });
   } catch (err) {
-    await t.rollback();
+    console.error("Error deleting expense:", err);
     res.status(500).json({ error: "Failed to delete expense" });
   }
 };
 
 exports.updateExpense = async (req, res) => {
-  const t = await sequelize.transaction();
-
   try {
     const { id } = req.params;
     const { description, amount, category } = req.body;
 
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ error: "Invalid expense ID" });
+    }
+
     const expense = await Expense.findOne({
-      where: { id, userId: req.user.userId },
-      transaction: t,
+      _id: new mongoose.Types.ObjectId(id),
+      userId: req.user.userId,
     });
 
     if (!expense) {
-      await t.rollback();
-      return res.status(404).json({
-        error: "Expense not found or you don't have permission to update it",
-      });
+      return res.status(404).json({ error: "Expense not found" });
     }
 
-    const amountDifference = parseFloat(amount) - parseFloat(expense.amount);
-
-    // Update user's total expenses with the difference
-    if (amountDifference !== 0) {
-      await User.increment("totalExpenses", {
-        by: amountDifference,
-        where: { id: req.user.userId },
-        transaction: t,
-      });
+    // If it's an expense type, update the user's total expenses
+    if (expense.type === "expense") {
+      const amountDiff = parseFloat(amount) - expense.amount;
+      if (amountDiff !== 0) {
+        await User.findByIdAndUpdate(req.user.userId, {
+          $inc: { totalExpenses: amountDiff },
+        });
+      }
     }
 
-    await expense.update({ description, amount, category }, { transaction: t });
+    expense.description = description;
+    expense.amount = parseFloat(amount);
+    expense.category = category;
 
-    await t.commit();
-    res.status(200).json({ message: "Expense updated successfully" });
+    await expense.save();
+    res.json(expense);
   } catch (err) {
-    await t.rollback();
+    console.error("Error updating expense:", err);
     res.status(500).json({ error: "Failed to update expense" });
   }
 };
@@ -200,9 +173,8 @@ exports.downloadExpenses = async (req, res) => {
       return res.status(403).json({ error: "Premium feature only" });
     }
 
-    const expenses = await Expense.findAll({
-      where: { userId: req.user.userId },
-      order: [["date", "DESC"]],
+    const expenses = await Expense.find({ userId: req.user.userId }).sort({
+      date: -1,
     });
 
     const headers = "Date,Type,Description,Category,Amount\n";
@@ -230,6 +202,12 @@ exports.downloadExpenses = async (req, res) => {
 
     const fileStream = fs.createReadStream(filePath);
 
+    const s3 = new AWS.S3({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION,
+    });
+
     const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: filename,
@@ -237,29 +215,24 @@ exports.downloadExpenses = async (req, res) => {
       ContentType: "text/csv",
     };
 
-    s3.upload(params, (err, data) => {
-      // Clean up temporary file
-      fs.unlinkSync(filePath);
+    const uploadResult = await s3.upload(params).promise();
 
-      if (err) {
-        return res
-          .status(500)
-          .json({ message: "File upload failed", error: err });
-      }
+    // Clean up temporary file
+    fs.unlinkSync(filePath);
 
-      // Generate a signed URL that expires in 1 hour
-      const signedUrl = s3.getSignedUrl("getObject", {
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: filename,
-        Expires: 3600, // URL expires in 1 hour
-      });
+    // Generate a signed URL that expires in 1 hour
+    const signedUrl = s3.getSignedUrl("getObject", {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: filename,
+      Expires: 3600, // URL expires in 1 hour
+    });
 
-      res.status(200).json({
-        message: "File uploaded successfully",
-        fileUrl: signedUrl,
-      });
+    res.json({
+      message: "File uploaded successfully",
+      fileUrl: signedUrl,
     });
   } catch (err) {
+    console.error("Error downloading expenses:", err);
     res.status(500).json({ error: "Failed to download expenses" });
   }
 };
