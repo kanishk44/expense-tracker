@@ -23,7 +23,7 @@ exports.forgotPassword = async (req, res) => {
     });
 
     const sentFrom = new Sender(
-      "expense-tracker@kanishkcodes.biz",
+      "expense-tracker@kanishkcodes.tech",
       "Expense Tracker"
     );
     const recipients = [new Recipient(user.email, user.name)];
