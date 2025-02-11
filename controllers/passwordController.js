@@ -26,7 +26,7 @@ exports.forgotPassword = async (req, res) => {
 
     // Send email using MailerSend
     const sentFrom = new Sender(
-      "expense-tracker@kanishkcodes.biz",
+      "expense-tracker@kanishkcodes.tech",
       "Expense Tracker"
     );
     const recipients = [new Recipient(user.email, user.name)];
