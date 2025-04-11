@@ -4,3 +4,4 @@ access.log
 error.log
 .env
 
+frontend/src/firebaseConfig.js
