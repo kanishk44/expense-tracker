@@ -3,3 +3,4 @@ backend/uploads/
 access.log
 error.log
 .env
+
