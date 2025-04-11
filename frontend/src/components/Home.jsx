@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { getAuth, sendEmailVerification } from "firebase/auth";
+import ExpenseForm from "./ExpenseForm";
 
 export default function Home() {
   const { currentUser, logout } = useAuth();
@@ -212,14 +213,19 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <div className="bg-white shadow-sm rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Welcome, {userData?.fullName}!
-            </h2>
-            <p className="text-gray-600">
-              Start managing your expenses efficiently!
-            </p>
-          </div>
+          <>
+            <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                Welcome, {userData?.fullName}!
+              </h2>
+              <p className="text-gray-600">
+                Start managing your expenses efficiently!
+              </p>
+            </div>
+
+            {/* Show ExpenseForm only when profile is complete */}
+            <ExpenseForm />
+          </>
         )}
       </main>
     </div>
