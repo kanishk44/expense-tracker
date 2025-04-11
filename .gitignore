@@ -1,4 +1,5 @@
-node_modules/
-uploads/
-.env 
+backend/node_modules/
+backend/uploads/
 access.log
+error.log
+.env
