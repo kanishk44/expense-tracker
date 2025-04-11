@@ -9,6 +9,7 @@ export default function Home() {
   const [userData, setUserData] = useState(null);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationError, setVerificationError] = useState("");
+  const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
   const navigate = useNavigate();
   const db = getFirestore();
   const auth = getAuth();
@@ -17,6 +18,17 @@ export default function Home() {
     if (!currentUser) {
       navigate("/login");
     } else {
+      // Check if user just verified email
+      const hasShownVerification = localStorage.getItem("verificationShown");
+      if (currentUser.emailVerified && !hasShownVerification) {
+        setShowVerificationSuccess(true);
+        localStorage.setItem("verificationShown", "true");
+        // Hide the success message after 5 seconds
+        setTimeout(() => {
+          setShowVerificationSuccess(false);
+        }, 5000);
+      }
+
       // Fetch user data from Firestore
       const fetchUserData = async () => {
         try {
@@ -35,6 +47,7 @@ export default function Home() {
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem("verificationShown"); // Clear verification status on logout
       await logout();
       navigate("/login");
     } catch (error) {
@@ -90,7 +103,34 @@ export default function Home() {
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Email Verification Status */}
+        {/* Email Verification Success Message */}
+        {showVerificationSuccess && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-green-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">
+                  Thank you, your email has been verified!
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Email Verification Request Banner */}
         {currentUser && !currentUser.emailVerified && (
           <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
             <div className="flex">
@@ -129,33 +169,6 @@ export default function Home() {
                     </button>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Email Verified Success Message */}
-        {currentUser?.emailVerified && (
-          <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-green-400"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">
-                  Thank you, your email has been verified!
-                </p>
               </div>
             </div>
           </div>
