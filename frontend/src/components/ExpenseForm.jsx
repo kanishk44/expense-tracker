@@ -7,6 +7,9 @@ import {
   query,
   where,
   getDocs,
+  deleteDoc,
+  doc,
+  updateDoc,
 } from "firebase/firestore";
 
 const EXPENSE_CATEGORIES = [
@@ -30,6 +33,7 @@ export default function ExpenseForm() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [editingExpense, setEditingExpense] = useState(null);
   const { currentUser } = useAuth();
   const db = getFirestore();
 
@@ -44,12 +48,7 @@ export default function ExpenseForm() {
       setError("");
 
       const expensesRef = collection(db, "expenses");
-      const q = query(
-        expensesRef,
-        where("userId", "==", currentUser.uid)
-        // Temporarily removed orderBy to work without index
-        // orderBy("date", "desc")
-      );
+      const q = query(expensesRef, where("userId", "==", currentUser.uid));
 
       const querySnapshot = await getDocs(q);
       const fetchedExpenses = querySnapshot.docs.map((doc) => ({
@@ -105,12 +104,74 @@ export default function ExpenseForm() {
     }
   };
 
+  const handleDelete = async (expenseId) => {
+    try {
+      setError("");
+      await deleteDoc(doc(db, "expenses", expenseId));
+      setExpenses(expenses.filter((expense) => expense.id !== expenseId));
+    } catch (err) {
+      setError("Failed to delete expense. Please try again later.");
+      console.error("Error deleting expense:", err);
+    }
+  };
+
+  const handleEdit = (expense) => {
+    setEditingExpense(expense);
+    setAmount(expense.amount.toString());
+    setDescription(expense.description);
+    setCategory(expense.category);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const updatedExpense = {
+        amount: parseFloat(amount),
+        description,
+        category,
+        date: editingExpense.date,
+        userId: currentUser.uid,
+      };
+
+      await updateDoc(doc(db, "expenses", editingExpense.id), updatedExpense);
+
+      setExpenses(
+        expenses.map((expense) =>
+          expense.id === editingExpense.id
+            ? { ...expense, ...updatedExpense }
+            : expense
+        )
+      );
+
+      // Reset form and editing state
+      setAmount("");
+      setDescription("");
+      setCategory("");
+      setEditingExpense(null);
+    } catch (err) {
+      setError("Failed to update expense. Please try again later.");
+      console.error("Error updating expense:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingExpense(null);
+    setAmount("");
+    setDescription("");
+    setCategory("");
+  };
+
   return (
     <div className="space-y-6">
       {/* Expense Form */}
       <div className="bg-white shadow-sm rounded-lg p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">
-          Add New Expense
+          {editingExpense ? "Edit Expense" : "Add New Expense"}
         </h2>
         {error && (
           <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
@@ -135,7 +196,10 @@ export default function ExpenseForm() {
             </div>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={editingExpense ? handleUpdate : handleSubmit}
+          className="space-y-4"
+        >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label
@@ -202,7 +266,16 @@ export default function ExpenseForm() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end space-x-3">
+            {editingExpense && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
               disabled={submitting}
@@ -230,8 +303,10 @@ export default function ExpenseForm() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Adding...
+                  {editingExpense ? "Updating..." : "Adding..."}
                 </div>
+              ) : editingExpense ? (
+                "Update Expense"
               ) : (
                 "Add Expense"
               )}
@@ -289,6 +364,9 @@ export default function ExpenseForm() {
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -308,13 +386,27 @@ export default function ExpenseForm() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                       ₹{expense.amount.toFixed(2)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(expense)}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(expense.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50">
                 <tr>
                   <td
-                    colSpan="3"
+                    colSpan="4"
                     className="px-6 py-3 text-right text-sm font-medium text-gray-900"
                   >
                     Total
