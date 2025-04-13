@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useDispatch, useSelector } from "react-redux";
 import {
   getFirestore,
   collection,
@@ -11,6 +11,23 @@ import {
   doc,
   updateDoc,
 } from "firebase/firestore";
+import {
+  fetchExpensesStart,
+  fetchExpensesSuccess,
+  fetchExpensesFailure,
+  addExpenseStart,
+  addExpenseSuccess,
+  addExpenseFailure,
+  updateExpenseStart,
+  updateExpenseSuccess,
+  updateExpenseFailure,
+  deleteExpenseStart,
+  deleteExpenseSuccess,
+  deleteExpenseFailure,
+  setEditingExpense,
+  clearEditingExpense,
+  clearError,
+} from "../store/slices/expensesSlice";
 
 const EXPENSE_CATEGORIES = [
   "Food",
@@ -29,75 +46,76 @@ export default function ExpenseForm() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [expenses, setExpenses] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [editingExpense, setEditingExpense] = useState(null);
-  const { currentUser } = useAuth();
+
+  const dispatch = useDispatch();
+  const { expenses, loading, error, editingExpense } = useSelector(
+    (state) => state.expenses
+  );
+  const { user } = useSelector((state) => state.auth);
   const db = getFirestore();
 
-  // Fetch expenses on component mount
   useEffect(() => {
-    fetchExpenses();
-  }, [currentUser]);
+    if (user) {
+      fetchExpenses();
+    }
+  }, [user]);
 
   const fetchExpenses = async () => {
     try {
-      setLoading(true);
-      setError("");
+      dispatch(fetchExpensesStart());
 
       const expensesRef = collection(db, "expenses");
-      const q = query(expensesRef, where("userId", "==", currentUser.uid));
+      const q = query(expensesRef, where("userId", "==", user.uid));
 
       const querySnapshot = await getDocs(q);
       const fetchedExpenses = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        amount: parseFloat(doc.data().amount), // Ensure amount is a number
+        amount: parseFloat(doc.data().amount),
       }));
 
-      // Sort expenses by date in memory
       fetchedExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      setExpenses(fetchedExpenses);
+      dispatch(fetchExpensesSuccess(fetchedExpenses));
     } catch (err) {
-      setError("Failed to fetch expenses. Please try again later.");
+      dispatch(
+        fetchExpensesFailure(
+          "Failed to fetch expenses. Please try again later."
+        )
+      );
       console.error("Error fetching expenses:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setError("");
+    dispatch(clearError());
 
     try {
-      // Create new expense object
+      dispatch(addExpenseStart());
+
       const newExpense = {
         amount: parseFloat(amount),
         description,
         category,
         date: new Date().toISOString(),
-        userId: currentUser.uid, // Associate expense with current user
+        userId: user.uid,
         createdAt: new Date().toISOString(),
       };
 
-      // Add to Firestore
       const docRef = await addDoc(collection(db, "expenses"), newExpense);
-
-      // Add the ID to the expense object and update state
       const expenseWithId = { ...newExpense, id: docRef.id };
-      setExpenses([expenseWithId, ...expenses]);
 
-      // Reset form
+      dispatch(addExpenseSuccess(expenseWithId));
+
       setAmount("");
       setDescription("");
       setCategory("");
     } catch (err) {
-      setError("Failed to add expense. Please try again later.");
+      dispatch(
+        addExpenseFailure("Failed to add expense. Please try again later.")
+      );
       console.error("Error adding expense:", err);
     } finally {
       setSubmitting(false);
@@ -106,17 +124,23 @@ export default function ExpenseForm() {
 
   const handleDelete = async (expenseId) => {
     try {
-      setError("");
+      dispatch(clearError());
+      dispatch(deleteExpenseStart());
+
       await deleteDoc(doc(db, "expenses", expenseId));
-      setExpenses(expenses.filter((expense) => expense.id !== expenseId));
+      dispatch(deleteExpenseSuccess(expenseId));
     } catch (err) {
-      setError("Failed to delete expense. Please try again later.");
+      dispatch(
+        deleteExpenseFailure(
+          "Failed to delete expense. Please try again later."
+        )
+      );
       console.error("Error deleting expense:", err);
     }
   };
 
   const handleEdit = (expense) => {
-    setEditingExpense(expense);
+    dispatch(setEditingExpense(expense));
     setAmount(expense.amount.toString());
     setDescription(expense.description);
     setCategory(expense.category);
@@ -125,34 +149,34 @@ export default function ExpenseForm() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setError("");
+    dispatch(clearError());
 
     try {
+      dispatch(updateExpenseStart());
+
       const updatedExpense = {
         amount: parseFloat(amount),
         description,
         category,
         date: editingExpense.date,
-        userId: currentUser.uid,
+        userId: user.uid,
       };
 
       await updateDoc(doc(db, "expenses", editingExpense.id), updatedExpense);
+      const expenseWithId = { ...updatedExpense, id: editingExpense.id };
 
-      setExpenses(
-        expenses.map((expense) =>
-          expense.id === editingExpense.id
-            ? { ...expense, ...updatedExpense }
-            : expense
-        )
-      );
+      dispatch(updateExpenseSuccess(expenseWithId));
 
-      // Reset form and editing state
       setAmount("");
       setDescription("");
       setCategory("");
-      setEditingExpense(null);
+      dispatch(clearEditingExpense());
     } catch (err) {
-      setError("Failed to update expense. Please try again later.");
+      dispatch(
+        updateExpenseFailure(
+          "Failed to update expense. Please try again later."
+        )
+      );
       console.error("Error updating expense:", err);
     } finally {
       setSubmitting(false);
@@ -160,7 +184,7 @@ export default function ExpenseForm() {
   };
 
   const cancelEdit = () => {
-    setEditingExpense(null);
+    dispatch(clearEditingExpense());
     setAmount("");
     setDescription("");
     setCategory("");

@@ -1,46 +1,46 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  loginStart,
-  loginSuccess,
-  loginFailure,
-} from "../store/slices/authSlice";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, updateProfile, updateEmail } from "firebase/auth";
 
-export default function Login() {
+export default function UpdateProfile() {
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const auth = getAuth();
+  const { user } = useSelector((state) => state.auth);
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     try {
       setError("");
+      setMessage("");
       setLoading(true);
-      dispatch(loginStart());
 
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
+      // Update display name if provided
+      if (displayName && displayName !== user.displayName) {
+        await updateProfile(auth.currentUser, {
+          displayName: displayName,
+        });
+      }
 
-      // Get the ID token
-      const token = await user.getIdToken();
+      // Update email if provided and different from current
+      if (email && email !== user.email) {
+        await updateEmail(auth.currentUser, email);
+      }
 
-      dispatch(loginSuccess({ user, token }));
-      navigate("/");
+      setMessage("Profile updated successfully!");
+      setTimeout(() => {
+        navigate("/");
+      }, 2000);
     } catch (err) {
-      setError("Failed to sign in");
-      dispatch(loginFailure(err.message));
+      setError("Failed to update profile: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export default function Login() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            Update Profile
           </h2>
         </div>
         {error && (
@@ -77,8 +77,46 @@ export default function Login() {
             </div>
           </div>
         )}
+        {message && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-green-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-green-700">{message}</p>
+              </div>
+            </div>
+          </div>
+        )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="display-name" className="sr-only">
+                Display Name
+              </label>
+              <input
+                id="display-name"
+                name="displayName"
+                type="text"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+              />
+            </div>
             <div>
               <label htmlFor="email-address" className="sr-only">
                 Email address
@@ -89,38 +127,11 @@ export default function Login() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <Link
-                to="/forgot-password"
-                className="font-medium text-blue-600 hover:text-blue-500"
-              >
-                Forgot your password?
-              </Link>
             </div>
           </div>
 
@@ -152,25 +163,14 @@ export default function Login() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Signing in...
+                  Updating...
                 </div>
               ) : (
-                "Sign in"
+                "Update Profile"
               )}
             </button>
           </div>
         </form>
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{" "}
-            <Link
-              to="/signup"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              Sign up
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
   );

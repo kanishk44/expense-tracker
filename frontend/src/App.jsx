@@ -1,30 +1,40 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import Signup from "./components/Signup";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Provider } from "react-redux";
+import store from "./store";
+import PrivateRoute from "./components/PrivateRoute";
+import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
-import Home from "./components/Home";
-import Profile from "./components/Profile";
+import Signup from "./components/Signup";
 import ForgotPassword from "./components/ForgotPassword";
+import UpdateProfile from "./components/UpdateProfile";
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
+    <Provider store={store}>
+      <Router>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/update-profile"
+            element={
+              <PrivateRoute>
+                <UpdateProfile />
+              </PrivateRoute>
+            }
+          />
           <Route path="/login" element={<Login />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-      </AuthProvider>
-    </Router>
+      </Router>
+    </Provider>
   );
 }
 
