@@ -1,16 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/slices/authSlice";
 import { getAuth } from "firebase/auth";
 import ExpenseForm from "./ExpenseForm";
+import PremiumButton from "./PremiumButton";
+import ThemeToggle from "./ThemeToggle";
+import DownloadButton from "./DownloadButton";
 
 export default function Dashboard() {
   const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [totalExpenses, setTotalExpenses] = useState(0);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const auth = getAuth();
-  const { user } = useSelector((state) => state.auth);
+  const expenses = useSelector((state) => state.expenses.expenses);
+  const isDarkMode = useSelector((state) => state.theme.isDarkMode);
+  const isPremium = useSelector((state) => state.auth.isPremium);
+
+  useEffect(() => {
+    // Calculate total expenses
+    const total = expenses.reduce(
+      (sum, expense) => sum + Number(expense.amount),
+      0
+    );
+    setTotalExpenses(total);
+  }, [expenses]);
+
+  // Apply dark mode class to body
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDarkMode]);
 
   async function handleLogout() {
     try {
@@ -24,31 +48,31 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div
+      className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}`}
+    >
       {/* Navigation */}
-      <nav className="bg-white shadow-sm">
+      <nav className={`${isDarkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">
-                  Expense Tracker
-                </h1>
-              </div>
+            <div className="flex items-center">
+              <h1
+                className={`text-xl font-semibold ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                }`}
+              >
+                Expense Tracker
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate("/update-profile")}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Update Profile
-              </button>
-              <span className="text-gray-700">Welcome, {user?.email}</span>
+              <span className={isDarkMode ? "text-gray-300" : "text-gray-600"}>
+                Welcome, {auth.currentUser?.email}
+              </span>
               <button
                 onClick={handleLogout}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
-                Log Out
+                Logout
               </button>
             </div>
           </div>
@@ -58,7 +82,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg
@@ -81,9 +105,24 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="px-4 py-6 sm:px-0">
+        <div
+          className={`${
+            isDarkMode ? "bg-gray-800" : "bg-white"
+          } rounded-lg shadow px-5 py-6 sm:px-6`}
+        >
           <ExpenseForm />
         </div>
+
+        {/* Show Premium Button if total expenses exceed 10,000 */}
+        {totalExpenses > 10000 && !isPremium && <PremiumButton />}
+
+        {/* Show Premium Features only when premium is activated */}
+        {isPremium && (
+          <>
+            <ThemeToggle />
+            <DownloadButton />
+          </>
+        )}
       </main>
     </div>
   );

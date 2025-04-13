@@ -6,7 +6,8 @@ import {
   loginSuccess,
   loginFailure,
 } from "../store/slices/authSlice";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebaseConfig";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,7 +17,6 @@ export default function Login() {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const auth = getAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -39,7 +39,8 @@ export default function Login() {
       dispatch(loginSuccess({ user, token }));
       navigate("/");
     } catch (err) {
-      setError("Failed to sign in");
+      console.error("Login error:", err);
+      setError("Failed to sign in: " + err.message);
       dispatch(loginFailure(err.message));
     } finally {
       setLoading(false);
