@@ -1,7 +1,6 @@
-backend/node_modules/
-backend/uploads/
+node_modules/
+uploads/
 access.log
 error.log
 .env
 
-frontend/src/firebaseConfig.js
