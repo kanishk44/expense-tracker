@@ -25,7 +25,13 @@ connectDB();
 
 app.use(bodyParser.json());
 app.use(express.static("public"));
-app.use(morgan("combined", { stream: accessLogStream }));
+
+// Use morgan for logging in production
+if (process.env.NODE_ENV === "production") {
+  app.use(morgan("combined"));
+} else {
+  app.use(morgan("dev"));
+}
 
 app.use("/api/user", userRoutes);
 app.use("/api/expenses", authenticateToken, expenseRoutes);
