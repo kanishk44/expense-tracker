@@ -3,4 +3,6 @@ uploads/
 access.log
 error.log
 .env
+.DS_Store
+
 
